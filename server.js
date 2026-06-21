@@ -20,10 +20,14 @@ const MAX_ATTEMPTS  = 5;              // max wrong guesses before lockout
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST,
   port:   Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === "true", // true for port 465
+  secure: process.env.SMTP_SECURE === "true",
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
+  },
+  family: 4, // ← Force IPv4 (Render free tier doesn't support IPv6)
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
