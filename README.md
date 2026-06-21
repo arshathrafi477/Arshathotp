@@ -90,3 +90,4 @@ Open `index.html` in your browser. The API runs at `http://localhost:3000`.
 - Max **5 wrong attempts** before OTP is invalidated
 - Resend available every **30 seconds** (frontend enforced)
 "# Arshathotp" 
+"# Arshathotp" 
