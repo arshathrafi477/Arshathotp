@@ -5,7 +5,21 @@ const cors = require("cors");
 const crypto = require("crypto");
 
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  "https://starlit-elf-aefb9f.netlify.app",
+  "http://localhost:3000",
+  "http://127.0.0.1:5500",
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error("CORS blocked: " + origin));
+  },
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type"],
+}));
 app.use(express.json());
 
 // ─── In-memory OTP store ───────────────────────────────────────────────────
