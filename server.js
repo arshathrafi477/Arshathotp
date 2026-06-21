@@ -5,20 +5,8 @@ const cors = require("cors");
 const crypto = require("crypto");
 
 const app = express();
-// ── Allow ALL Netlify previews + localhost ──────────────────────────────────
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // Postman / curl
-    if (
-      origin.endsWith(".netlify.app") ||
-      origin.startsWith("http://localhost") ||
-      origin.startsWith("http://127.0.0.1")
-    ) return callback(null, true);
-    callback(new Error("CORS blocked: " + origin));
-  },
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"],
-}));
+// ── Allow ALL origins (open CORS) ──────────────────────────────────────────
+app.use(cors());
 app.use(express.json());
 
 // ─── In-memory OTP store ───────────────────────────────────────────────────
