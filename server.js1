@@ -1,0 +1,150 @@
+const express = require("express");
+const cors = require("cors");
+const { Resend } = require("resend");
+require("dotenv").config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// In-memory OTP store: { email: { otp, expires, attempts } }
+const otpStore = {};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function sendOTPEmail(to, otp) {
+  await resend.emails.send({
+    from: "OTP Verify <onboarding@resend.dev>",
+    to,
+    subject: "Your OTP Verification Code",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px;">
+        <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">Verification code</h2>
+        <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">
+          Use the code below to complete your verification. It expires in 5 minutes.
+        </p>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;text-align:center;margin-bottom:24px;">
+          <span style="font-size:40px;font-weight:700;letter-spacing:0.35em;color:#15803d;">${otp}</span>
+        </div>
+        <p style="margin:0;color:#9ca3af;font-size:12px;">If you did not request this, ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
+
+// POST /send-otp
+app.post("/send-otp", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ error: "Valid email is required." });
+  }
+
+  const otp = generateOTP();
+  const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
+  otpStore[email] = { otp, expires, attempts: 0 };
+
+  try {
+    await sendOTPEmail(email, otp);
+    console.log(`[send-otp] OTP sent to ${email}`);
+    return res.json({ message: "OTP sent successfully. Check your inbox." });
+  } catch (err) {
+    console.error("[send-otp] Error:", err.message);
+    delete otpStore[email];
+    return res.status(500).json({ error: "Failed to send OTP. Try again." });
+  }
+});
+
+// POST /verify-otp
+app.post("/verify-otp", (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: "Email and OTP are required." });
+  }
+
+  const record = otpStore[email];
+
+  if (!record) {
+    return res.status(400).json({ error: "No OTP found. Please request one." });
+  }
+
+  if (Date.now() > record.expires) {
+    delete otpStore[email];
+    return res.status(400).json({ error: "OTP has expired. Please request a new one." });
+  }
+
+  record.attempts += 1;
+
+  if (record.attempts > 5) {
+    delete otpStore[email];
+    return res.status(429).json({ error: "Too many attempts. Please request a new OTP." });
+  }
+
+  if (otp !== record.otp) {
+    return res.status(400).json({
+      error: `Incorrect OTP. ${5 - record.attempts} attempt(s) remaining.`,
+    });
+  }
+
+  delete otpStore[email];
+  console.log(`[verify-otp] ${email} verified successfully`);
+  return res.json({ message: "Email verified successfully!" });
+});
+
+// POST /resend-otp
+app.post("/resend-otp", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ error: "Valid email is required." });
+  }
+
+  const otp = generateOTP();
+  const expires = Date.now() + 5 * 60 * 1000;
+  otpStore[email] = { otp, expires, attempts: 0 };
+
+  try {
+    await sendOTPEmail(email, otp);
+    console.log(`[resend-otp] OTP resent to ${email}`);
+    return res.json({ message: "New OTP sent. Check your inbox." });
+  } catch (err) {
+    console.error("[resend-otp] Error:", err.message);
+    delete otpStore[email];
+    return res.status(500).json({ error: "Failed to resend OTP. Try again." });
+  }
+});
+
+// GET / — root
+app.get("/", (req, res) => {
+  res.json({ status: "OTP Backend running", time: new Date().toISOString() });
+});
+
+// GET /api/health
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    server: "OTP Backend",
+    time: new Date().toISOString(),
+    uptime: `${Math.floor(process.uptime())}s`,
+    emailService: "Resend",
+    otpStoreCount: Object.keys(otpStore).length,
+  });
+});
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
