@@ -143,6 +143,21 @@ app.post("/verify-otp", (req, res) => {
   return res.json({ success: true, message: "OTP verified successfully! You are now authenticated." });
 });
 
+// ─── GET / ────────────────────────────────────────────────────────────────
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Arshathotp OTP API",
+    status: "🟢 Live",
+    version: "1.0.0",
+    endpoints: {
+      health:    "GET  /health",
+      sendOTP:   "POST /send-otp   → { email }",
+      verifyOTP: "POST /verify-otp → { email, otp }"
+    },
+    docs: "Send a POST request to /send-otp with your email to get started!"
+  });
+});
+
 // ─── GET /health ───────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
