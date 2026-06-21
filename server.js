@@ -5,16 +5,15 @@ const cors = require("cors");
 const crypto = require("crypto");
 
 const app = express();
-const allowedOrigins = [
-  "https://starlit-elf-aefb9f.netlify.app",
-  "http://localhost:3000",
-  "http://127.0.0.1:5500",
-];
-
+// ── Allow ALL Netlify previews + localhost ──────────────────────────────────
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin) return callback(null, true); // Postman / curl
+    if (
+      origin.endsWith(".netlify.app") ||
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("http://127.0.0.1")
+    ) return callback(null, true);
     callback(new Error("CORS blocked: " + origin));
   },
   methods: ["GET", "POST"],
