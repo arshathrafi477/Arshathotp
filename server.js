@@ -11,11 +11,15 @@ app.use(express.json());
 // ─── Gmail transporter ─────────────────────────────────────────────────────
 // Uses Gmail service (not raw SMTP) — works on Render free tier!
 const transporter = nodemailer.createTransport({
-  service: "gmail",          // ← nodemailer knows Gmail's settings automatically
+  host:   "smtp.gmail.com",  // explicit host forces IPv4 resolution
+  port:   465,
+  secure: true,
   auth: {
-    user: process.env.GMAIL_USER,   // arshathrafi477@gmail.com
-    pass: process.env.GMAIL_PASS,   // 16-char App Password (NOT your Gmail password)
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
   },
+  family: 4,                 // ← Force IPv4 (Render free tier blocks IPv6)
+  tls: { rejectUnauthorized: false },
 });
 
 transporter.verify((err) => {
